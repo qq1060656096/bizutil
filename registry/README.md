@@ -1,6 +1,6 @@
 # Registry - 通用资源注册与管理框架
 
-[![Go Reference](https://pkg.go.dev/badge/github.com/your-username/bizutil/registry.svg)](https://pkg.go.dev/github.com/your-username/bizutil/registry)
+[![Go Reference](https://pkg.go.dev/badge/github.com/qq1060656096/bizutil/registry.svg)](https://pkg.go.dev/github.com/qq1060656096/bizutil/registry)
 
 `registry` 是一个 Go 语言实现的泛型资源管理框架，提供资源的分组管理、惰性初始化和并发安全访问。
 
@@ -15,7 +15,7 @@
 ## 安装
 
 ```bash
-go get github.com/your-username/bizutil/registry
+go get github.com/qq1060656096/bizutil/registry
 ```
 
 ## 快速开始
@@ -32,7 +32,7 @@ import (
     "database/sql"
     "log"
 
-    "github.com/your-username/bizutil/registry"
+    "github.com/qq1060656096/bizutil/registry"
     _ "github.com/go-sql-driver/mysql"
 )
 
@@ -86,7 +86,7 @@ import (
     "database/sql"
     "log"
 
-    "github.com/your-username/bizutil/registry"
+    "github.com/qq1060656096/bizutil/registry"
     _ "github.com/go-sql-driver/mysql"
 )
 
@@ -300,7 +300,7 @@ import (
     "fmt"
     "log"
 
-    "github.com/your-username/bizutil/registry"
+    "github.com/qq1060656096/bizutil/registry"
     _ "github.com/go-sql-driver/mysql"
 )
 
