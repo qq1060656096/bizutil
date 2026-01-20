@@ -25,6 +25,9 @@ var (
 	// ErrCloseResourceFailed 表示关闭资源时发生错误。
 	// 当 Closer 函数返回错误时，将返回此错误。
 	ErrCloseResourceFailed = errors.New("bizutil.registry: close resource failed")
+
+	// ErrPingResourceFailed
+	ErrPingResourceFailed = errors.New("bizutil.registry: ping resource failed")
 )
 
 // NewErrGroupNotFound 创建一个包含组名信息的组未找到错误。
@@ -47,4 +50,8 @@ func NewErrResourceNotFound(groupName, resourceName string) error {
 // 同时也可以通过 errors.Is 判断原始错误。
 func NewErrCloseResourceFailed(groupName, resourceName string, err error) error {
 	return fmt.Errorf("close resource %q in group %q failed: %w: %w", resourceName, groupName, ErrCloseResourceFailed, err)
+}
+
+func NewErrPingResourceFailed(groupName, resourceName string, err error) error {
+	return fmt.Errorf("ping resource %q in group %q failed: %w", resourceName, groupName, ErrPingResourceFailed)
 }

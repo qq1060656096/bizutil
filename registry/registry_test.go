@@ -466,6 +466,247 @@ func TestGroup_Close_NonexistentGroup(t *testing.T) {
 	}
 }
 
+// ============== Ping 测试 ==============
+
+func TestGroup_Ping(t *testing.T) {
+	m := newTestManager(newTestOpener(), newTestCloser())
+	ctx := context.Background()
+
+	m.AddGroup("group1")
+	g, _ := m.Group("group1")
+
+	// 注册资源
+	cfg := testConfig{Name: "res1", Value: 100}
+	g.Register(ctx, "res1", cfg)
+
+	// Ping 应该成功
+	err := g.Ping(ctx, "res1")
+	if err != nil {
+		t.Errorf("Ping should succeed: %v", err)
+	}
+}
+
+func TestGroup_Ping_GroupNotFound(t *testing.T) {
+	m := newTestManager(newTestOpener(), newTestCloser())
+	ctx := context.Background()
+
+	// 创建一个指向不存在组的 group 对象
+	g := &group[testConfig, *testResource]{
+		name: "nonexistent",
+		m:    m,
+	}
+
+	err := g.Ping(ctx, "res1")
+	if err == nil {
+		t.Error("Ping should return error for nonexistent group")
+	}
+	if !errors.Is(err, ErrGroupNotFound) {
+		t.Errorf("expected ErrGroupNotFound, got %v", err)
+	}
+}
+
+func TestGroup_Ping_ResourceNotFound(t *testing.T) {
+	m := newTestManager(newTestOpener(), newTestCloser())
+	ctx := context.Background()
+
+	m.AddGroup("group1")
+	g, _ := m.Group("group1")
+
+	// Ping 未注册的资源应该返回错误
+	err := g.Ping(ctx, "nonexistent")
+	if err == nil {
+		t.Error("Ping should return error for nonexistent resource")
+	}
+	if !errors.Is(err, ErrResourceNotFound) {
+		t.Errorf("expected ErrResourceNotFound, got %v", err)
+	}
+}
+
+func TestGroup_Ping_OpenerError(t *testing.T) {
+	m := newTestManager(newFailingOpener("opener error"), newTestCloser())
+	ctx := context.Background()
+
+	m.AddGroup("group1")
+	g, _ := m.Group("group1")
+	g.Register(ctx, "res1", testConfig{Name: "res1"})
+
+	// Ping 应该返回 opener 错误
+	err := g.Ping(ctx, "res1")
+	if err == nil {
+		t.Error("Ping should return error when opener fails")
+	}
+	if !errors.Is(err, ErrPingResourceFailed) {
+		t.Errorf("expected ErrPingResourceFailed, got %v", err)
+	}
+}
+
+func TestGroup_Ping_DoesNotCacheResource(t *testing.T) {
+	var openerCallCount int32
+
+	opener := func(ctx context.Context, cfg testConfig) (*testResource, error) {
+		atomic.AddInt32(&openerCallCount, 1)
+		return &testResource{Config: cfg}, nil
+	}
+
+	m := &manager[testConfig, *testResource]{
+		groups: make(map[string]map[string]*connection[testConfig, *testResource]),
+		opener: opener,
+		closer: newTestCloser(),
+	}
+	ctx := context.Background()
+
+	m.AddGroup("group1")
+	g, _ := m.Group("group1")
+	g.Register(ctx, "res1", testConfig{Name: "res1"})
+
+	// 第一次 Ping
+	err := g.Ping(ctx, "res1")
+	if err != nil {
+		t.Fatalf("Ping should succeed: %v", err)
+	}
+
+	// 第二次 Ping
+	err = g.Ping(ctx, "res1")
+	if err != nil {
+		t.Fatalf("Ping should succeed: %v", err)
+	}
+
+	// Ping 不应该缓存资源，所以 opener 应该被调用两次
+	if openerCallCount != 2 {
+		t.Errorf("expected opener to be called 2 times, but was called %d times", openerCallCount)
+	}
+
+	// 验证资源没有被标记为 ready
+	m.mu.RLock()
+	conn := m.groups["group1"]["res1"]
+	ready := conn.ready
+	m.mu.RUnlock()
+
+	if ready {
+		t.Error("Ping should not mark resource as ready")
+	}
+}
+
+func TestGroup_Ping_DoesNotAffectGetCache(t *testing.T) {
+	var openerCallCount int32
+
+	opener := func(ctx context.Context, cfg testConfig) (*testResource, error) {
+		atomic.AddInt32(&openerCallCount, 1)
+		return &testResource{Config: cfg}, nil
+	}
+
+	m := &manager[testConfig, *testResource]{
+		groups: make(map[string]map[string]*connection[testConfig, *testResource]),
+		opener: opener,
+		closer: newTestCloser(),
+	}
+	ctx := context.Background()
+
+	m.AddGroup("group1")
+	g, _ := m.Group("group1")
+	g.Register(ctx, "res1", testConfig{Name: "res1"})
+
+	// 先 Ping 一次
+	err := g.Ping(ctx, "res1")
+	if err != nil {
+		t.Fatalf("Ping should succeed: %v", err)
+	}
+
+	// Ping 不应该缓存，所以调用了一次
+	if openerCallCount != 1 {
+		t.Errorf("expected opener to be called 1 time, but was called %d times", openerCallCount)
+	}
+
+	// 然后通过 Get 获取资源
+	res1, err := g.Get(ctx, "res1")
+	if err != nil {
+		t.Fatalf("Get should succeed: %v", err)
+	}
+
+	// Get 应该再调用一次 opener（因为 Ping 没有缓存）
+	if openerCallCount != 2 {
+		t.Errorf("expected opener to be called 2 times after Get, but was called %d times", openerCallCount)
+	}
+
+	// 再次 Get 应该使用缓存
+	res2, err := g.Get(ctx, "res1")
+	if err != nil {
+		t.Fatalf("Get should succeed: %v", err)
+	}
+
+	// 应该返回同一个实例
+	if res1 != res2 {
+		t.Error("Get should return the same cached instance")
+	}
+
+	// opener 调用次数不应该增加
+	if openerCallCount != 2 {
+		t.Errorf("expected opener to still be called 2 times, but was called %d times", openerCallCount)
+	}
+}
+
+func TestConcurrent_Ping(t *testing.T) {
+	var openerCallCount int32
+
+	opener := func(ctx context.Context, cfg testConfig) (*testResource, error) {
+		atomic.AddInt32(&openerCallCount, 1)
+		// 模拟慢速操作
+		time.Sleep(5 * time.Millisecond)
+		return &testResource{Config: cfg}, nil
+	}
+
+	m := &manager[testConfig, *testResource]{
+		groups: make(map[string]map[string]*connection[testConfig, *testResource]),
+		opener: opener,
+		closer: newTestCloser(),
+	}
+	ctx := context.Background()
+
+	m.AddGroup("group1")
+	g, _ := m.Group("group1")
+	g.Register(ctx, "res1", testConfig{Name: "res1", Value: 1})
+
+	const numGoroutines = 20
+
+	var wg sync.WaitGroup
+	wg.Add(numGoroutines)
+
+	errCount := int32(0)
+
+	for i := 0; i < numGoroutines; i++ {
+		go func(id int) {
+			defer wg.Done()
+			err := g.Ping(ctx, "res1")
+			if err != nil {
+				atomic.AddInt32(&errCount, 1)
+				t.Errorf("Ping error: %v", err)
+			}
+		}(i)
+	}
+
+	wg.Wait()
+
+	// 所有 Ping 都应该成功
+	if errCount != 0 {
+		t.Errorf("expected 0 errors, got %d", errCount)
+	}
+
+	// 由于 Ping 不缓存，每次都应该调用 opener
+	if openerCallCount != numGoroutines {
+		t.Errorf("expected opener to be called %d times, but was called %d times", numGoroutines, openerCallCount)
+	}
+
+	// 验证资源仍然没有被标记为 ready
+	m.mu.RLock()
+	conn := m.groups["group1"]["res1"]
+	ready := conn.ready
+	m.mu.RUnlock()
+
+	if ready {
+		t.Error("concurrent Ping should not mark resource as ready")
+	}
+}
+
 // ============== 错误类型测试 ==============
 
 func TestErrors(t *testing.T) {

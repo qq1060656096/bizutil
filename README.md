@@ -80,7 +80,7 @@ type DBConfig struct {
 }
 
 // 创建资源管理器
-group := registry.NewGroup[DBConfig, *sql.DB](
+group := registry.New[DBConfig, *sql.DB](
     // Opener: 定义如何创建资源
     func(ctx context.Context, cfg DBConfig) (*sql.DB, error) {
         return sql.Open("mysql", cfg.DSN)

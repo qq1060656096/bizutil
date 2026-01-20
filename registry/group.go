@@ -49,4 +49,10 @@ type Group[C any, T any] interface {
 	// 返回关闭过程中遇到的所有错误。
 	// 调用后，整个组将从管理器中移除。
 	Close(ctx context.Context) []error
+
+	// Ping 遍历组内所有已注册资源，尝试初始化以验证可用性。
+	//
+	// Ping 不会将资源保存到组中。
+	// 返回的 errors 列表包含所有无法初始化的资源及其错误。
+	Ping(ctx context.Context, name string) error
 }

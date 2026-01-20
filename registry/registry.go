@@ -12,7 +12,7 @@ const defaultGroupName = "defaultGroup"
 // var _ Manager[C, T] = (*manager[C, T])(nil)
 // var _ Group[C, T] = (*group[C, T])(nil)
 
-// New 创建一个新的资源管理器。
+// NewManager 创建一个新的资源管理器。
 //
 // 参数:
 //   - opener: 资源打开器，用于根据配置创建资源实例
@@ -21,7 +21,7 @@ const defaultGroupName = "defaultGroup"
 // 类型参数:
 //   - C: 配置类型
 //   - T: 资源类型
-func New[C any, T any](opener Opener[C, T], closer Closer[T]) Manager[C, T] {
+func NewManager[C any, T any](opener Opener[C, T], closer Closer[T]) Manager[C, T] {
 	return &manager[C, T]{
 		groups: make(map[string]map[string]*connection[C, T]),
 		opener: opener,
@@ -351,6 +351,36 @@ func (g *group[C, T]) Close(ctx context.Context) []error {
 	return errs
 }
 
+// Ping 尝试初始化指定资源以验证可用性。
+//
+// Ping 不会修改资源的 ready 状态，也不会缓存资源实例。
+// 返回 nil 表示资源可用，返回错误表示初始化失败。
+func (g *group[C, T]) Ping(ctx context.Context, name string) error {
+	g.m.mu.RLock()
+	groupMap, ok := g.m.groups[g.name]
+	if !ok {
+		g.m.mu.RUnlock()
+		return NewErrGroupNotFound(g.name)
+	}
+
+	conn, ok := groupMap[name]
+	if !ok {
+		g.m.mu.RUnlock()
+		return NewErrResourceNotFound(g.name, name)
+	}
+
+	// 拷贝配置，解锁后使用
+	cfg := conn.cfg
+	g.m.mu.RUnlock()
+
+	// 调用 opener 检查资源可用性
+	_, err := g.m.opener(ctx, cfg)
+	if err != nil {
+		return NewErrPingResourceFailed(g.name, name, err)
+	}
+	return nil
+}
+
 // NewGroup 创建一个独立的资源组（单组模式）。
 //
 // 此函数是 New 的简化版本，适用于不需要多组管理的场景。
@@ -370,10 +400,10 @@ func (g *group[C, T]) Close(ctx context.Context) []error {
 //
 // 示例:
 //
-//	group := NewGroup(dbOpener, dbCloser)
+//	group := New(dbOpener, dbCloser)
 //	group.Register(ctx, "main", dbConfig)
 //	db, err := group.Get(ctx, "main")
-func NewGroup[C any, T any](
+func New[C any, T any](
 	opener Opener[C, T],
 	closer Closer[T],
 ) Group[C, T] {
