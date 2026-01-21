@@ -24,6 +24,7 @@ go get github.com/qq1060656096/bizutil
 | 模块 | 说明 | 文档 |
 |------|------|------|
 | [maputil](./maputil) | 泛型 Map 操作工具库 | [查看文档](./maputil/README.md) |
+| [qsql](./qsql) | SQL 占位符引擎，支持动态 SQL 生成 | [查看文档](./qsql/README.md) |
 | [registry](./registry) | 通用资源注册与管理框架 | [查看文档](./registry/README.md) |
 
 ## 快速开始

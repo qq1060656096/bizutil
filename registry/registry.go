@@ -2,6 +2,7 @@ package registry
 
 import (
 	"context"
+	"fmt"
 	"sync"
 )
 
@@ -374,9 +375,17 @@ func (g *group[C, T]) Ping(ctx context.Context, name string) error {
 	g.m.mu.RUnlock()
 
 	// 调用 opener 检查资源可用性
-	_, err := g.m.opener(ctx, cfg)
+	cr, err := g.m.opener(ctx, cfg)
 	if err != nil {
 		return NewErrPingResourceFailed(g.name, name, err)
+	}
+	if g.m.closer != nil {
+		err = g.m.closer(ctx, cr)
+		if err != nil {
+			err = fmt.Errorf("ping closer failed for %s: %w", name, err)
+			return NewErrCloseResourceFailed(g.name, name, err)
+		}
+
 	}
 	return nil
 }
