@@ -66,10 +66,11 @@ func (m *manager[C, T]) Group(name string) (Group[C, T], error) {
 		return nil, NewErrGroupNotFound(name)
 	}
 
-	return &group[C, T]{
+	g := &group[C, T]{
 		name: name,
 		m:    m,
-	}, nil
+	}
+	return g, nil
 }
 
 // Close 关闭管理器中所有已初始化的资源。
@@ -232,6 +233,33 @@ func (g *group[C, T]) Get(ctx context.Context, name string) (T, error) {
 // 如果不确定，请使用 Get 方法并处理返回的错误。
 func (g *group[C, T]) MustGet(ctx context.Context, name string) T {
 	val, err := g.Get(ctx, name)
+	if err != nil {
+		panic(err)
+	}
+	return val
+}
+
+func (g *group[C, T]) Config(ctx context.Context, name string) (C, error) {
+	var zero C
+
+	// 读锁：快速路径，检查资源是否已初始化
+	g.m.mu.RLock()
+	defer g.m.mu.RUnlock()
+	groupMap, ok := g.m.groups[g.name]
+	if !ok {
+		return zero, NewErrGroupNotFound(g.name)
+	}
+	conn, ok := groupMap[name]
+	if !ok {
+		return zero, NewErrResourceNotFound(g.name, name)
+	}
+	// 返回副本，避免外部修改
+	cfgCopy := conn.cfg // 如果C是值类型，这会自动复制
+	return cfgCopy, nil
+}
+
+func (g *group[C, T]) MustConfig(ctx context.Context, name string) C {
+	val, err := g.Config(ctx, name)
 	if err != nil {
 		panic(err)
 	}

@@ -26,6 +26,9 @@ type Group[C any, T any] interface {
 	// 如果获取失败，会触发 panic。
 	MustGet(ctx context.Context, name string) T
 
+	Config(ctx context.Context, name string) (C, error)
+	MustConfig(ctx context.Context, name string) C
+
 	// Register 向组中注册一个新的资源配置。
 	//
 	// 注意：此方法只保存配置，不会立即创建资源。
