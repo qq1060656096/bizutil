@@ -310,6 +310,77 @@ func TestGroup_MustGet(t *testing.T) {
 	g.MustGet(ctx, "nonexistent")
 }
 
+func TestGroup_Config(t *testing.T) {
+	m := newTestManager(newTestOpener(), newTestCloser())
+	ctx := context.Background()
+
+	m.AddGroup("group1")
+	g, _ := m.Group("group1")
+
+	// 获取不存在的资源配置应该返回错误
+	_, err := g.Config(ctx, "nonexistent")
+	if err == nil {
+		t.Error("Config should return error for nonexistent resource")
+	}
+	if !errors.Is(err, ErrResourceNotFound) {
+		t.Errorf("expected ErrResourceNotFound, got %v", err)
+	}
+
+	// 注册并获取资源配置
+	cfg := testConfig{Name: "res1", Value: 42}
+	g.Register(ctx, "res1", cfg)
+
+	gotCfg, err := g.Config(ctx, "res1")
+	if err != nil {
+		t.Errorf("Config should not return error: %v", err)
+	}
+	if gotCfg.Name != "res1" || gotCfg.Value != 42 {
+		t.Errorf("expected config {res1, 42}, got %v", gotCfg)
+	}
+}
+
+func TestGroup_Config_GroupNotFound(t *testing.T) {
+	m := newTestManager(newTestOpener(), newTestCloser())
+	ctx := context.Background()
+
+	// 创建一个指向不存在组的 group 对象
+	g := &group[testConfig, *testResource]{
+		name: "nonexistent",
+		m:    m,
+	}
+
+	_, err := g.Config(ctx, "res1")
+	if err == nil {
+		t.Error("Config should return error for nonexistent group")
+	}
+	if !errors.Is(err, ErrGroupNotFound) {
+		t.Errorf("expected ErrGroupNotFound, got %v", err)
+	}
+}
+
+func TestGroup_MustConfig(t *testing.T) {
+	m := newTestManager(newTestOpener(), newTestCloser())
+	ctx := context.Background()
+
+	m.AddGroup("group1")
+	g, _ := m.Group("group1")
+	g.Register(ctx, "res1", testConfig{Name: "res1", Value: 100})
+
+	// 正常获取
+	cfg := g.MustConfig(ctx, "res1")
+	if cfg.Value != 100 {
+		t.Errorf("expected value 100, got %d", cfg.Value)
+	}
+
+	// 获取不存在的资源应该 panic
+	defer func() {
+		if r := recover(); r == nil {
+			t.Error("MustConfig should panic for nonexistent resource")
+		}
+	}()
+	g.MustConfig(ctx, "nonexistent")
+}
+
 func TestGroup_Unregister(t *testing.T) {
 	m := newTestManager(newTestOpener(), newTestCloser())
 	ctx := context.Background()
