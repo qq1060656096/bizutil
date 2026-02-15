@@ -133,6 +133,85 @@ func TestError_HTTPStatus(t *testing.T) {
 	}
 }
 
+func TestHTTPStatusFromCode(t *testing.T) {
+	tests := []struct {
+		name string
+		code string
+		want int
+	}{
+		{
+			name: "valid 10-digit code",
+			code: "1014040001",
+			want: 404,
+		},
+		{
+			name: "valid 9-digit code (auto prefix)",
+			code: "014040001",
+			want: 404,
+		},
+		{
+			name: "invalid length",
+			code: "10140400",
+			want: 0,
+		},
+		{
+			name: "non-digit characters",
+			code: "10140a0001",
+			want: 0,
+		},
+		{
+			name: "invalid http status - too low",
+			code: "1010990001",
+			want: 0,
+		},
+		{
+			name: "invalid http status - too high",
+			code: "1016000001",
+			want: 0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := HTTPStatusFromCode(tt.code); got != tt.want {
+				t.Errorf("HTTPStatusFromCode(%q) = %d, want %d", tt.code, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestHTTPStatusFromInt(t *testing.T) {
+	tests := []struct {
+		name string
+		code int
+		want int
+	}{
+		{
+			name: "valid 10-digit code",
+			code: 1014040001,
+			want: 404,
+		},
+		{
+			name: "negative code",
+			code: -1,
+			want: 0,
+		},
+		{
+			name: "invalid http status",
+			code: 1010990001,
+			want: 0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := HTTPStatusFromInt(tt.code); got != tt.want {
+				t.Errorf("HTTPStatusFromInt(%d) = %d, want %d", tt.code, got, tt.want)
+			}
+		})
+	}
+}
+
 func TestNew(t *testing.T) {
 	tests := []struct {
 		name     string

@@ -27,6 +27,46 @@ import (
 
 const codeLen = 10
 
+// HTTPStatusFromCode 从错误码字符串解析 HTTP 状态码。
+//
+// 解析失败（长度不对/非数字/HTTP 状态码不合法）时返回 0。
+func HTTPStatusFromCode(code string) int {
+	// 兼容 9 位码（自动补占位符）
+	if len(code) == codeLen-1 {
+		code = "1" + code
+	}
+
+	if len(code) != codeLen {
+		return 0
+	}
+
+	for _, r := range code {
+		if r < '0' || r > '9' {
+			return 0
+		}
+	}
+
+	status, err := strconv.Atoi(code[3:6])
+	if err != nil {
+		return 0
+	}
+	if status < 100 || status > 599 {
+		return 0
+	}
+
+	return status
+}
+
+// HTTPStatusFromInt 从错误码 int 解析 HTTP 状态码。
+//
+// 解析失败时返回 0。
+func HTTPStatusFromInt(code int) int {
+	if code < 0 {
+		return 0
+	}
+	return HTTPStatusFromCode(strconv.Itoa(code))
+}
+
 // Error 表示应用错误。
 type Error struct {
 	code   string // 机器定位码（必有）

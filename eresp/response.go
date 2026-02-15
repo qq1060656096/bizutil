@@ -28,7 +28,7 @@ type Response struct {
 
 const (
 	// 成功
-	SuccessCode = 0
+	OkCode = 0
 	// 未知错误码
 	UnknownCode = -1
 )
@@ -40,7 +40,7 @@ func OKResp(data any, msg string) Response {
 	}
 
 	return Response{
-		Code:    SuccessCode,
+		Code:    OkCode,
 		Message: msg,
 		Data:    data,
 	}
@@ -52,7 +52,7 @@ func Ok[T any](data T, msg string) Response {
 		msg = "OK"
 	}
 	return Response{
-		Code:    SuccessCode,
+		Code:    OkCode,
 		Message: msg,
 		Data:    data,
 	}

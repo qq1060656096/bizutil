@@ -21,7 +21,7 @@ func TestOKResp(t *testing.T) {
 			data: map[string]string{"key": "value"},
 			msg:  "success",
 			expected: Response{
-				Code:    SuccessCode,
+				Code:    OkCode,
 				Message: "success",
 				Data:    map[string]string{"key": "value"},
 			},
@@ -30,19 +30,19 @@ func TestOKResp(t *testing.T) {
 			name:     "带数据无消息",
 			data:     "test data",
 			msg:      "",
-			expected: Response{Code: SuccessCode, Message: "OK", Data: "test data"},
+			expected: Response{Code: OkCode, Message: "OK", Data: "test data"},
 		},
 		{
 			name:     "无数据有消息",
 			data:     nil,
 			msg:      "created",
-			expected: Response{Code: SuccessCode, Message: "created", Data: nil},
+			expected: Response{Code: OkCode, Message: "created", Data: nil},
 		},
 		{
 			name:     "无数据无消息",
 			data:     nil,
 			msg:      "",
-			expected: Response{Code: SuccessCode, Message: "OK", Data: nil},
+			expected: Response{Code: OkCode, Message: "OK", Data: nil},
 		},
 	}
 
@@ -83,7 +83,7 @@ func TestOk(t *testing.T) {
 			data: "hello world",
 			msg:  "ok",
 			expected: Response{
-				Code:    SuccessCode,
+				Code:    OkCode,
 				Message: "ok",
 				Data:    "hello world",
 			},
@@ -93,7 +93,7 @@ func TestOk(t *testing.T) {
 			data: 42,
 			msg:  "",
 			expected: Response{
-				Code:    SuccessCode,
+				Code:    OkCode,
 				Message: "OK",
 				Data:    42,
 			},
@@ -106,9 +106,9 @@ func TestOk(t *testing.T) {
 			}{Name: "张三", Age: 25},
 			msg: "user created",
 			expected: Response{
-				Code:    SuccessCode,
+				Code:    OkCode,
 				Message: "user created",
-				Data:    struct {
+				Data: struct {
 					Name string `json:"name"`
 					Age  int    `json:"age"`
 				}{Name: "张三", Age: 25},
@@ -238,7 +238,7 @@ func TestFromError(t *testing.T) {
 			err:     nil,
 			details: nil,
 			expected: Response{
-				Code:    SuccessCode,
+				Code:    OkCode,
 				Message: "OK",
 				Data:    nil,
 			},
@@ -305,7 +305,7 @@ func (e *testHTTPError) StatusCode() int {
 func TestResponseJSON(t *testing.T) {
 	t.Run("成功响应JSON", func(t *testing.T) {
 		resp := Ok(map[string]string{"name": "张三"}, "创建成功")
-		if resp.Code != SuccessCode {
+		if resp.Code != OkCode {
 			t.Errorf("Expected success code, got %d", resp.Code)
 		}
 	})
@@ -320,8 +320,8 @@ func TestResponseJSON(t *testing.T) {
 
 // TestConstants 测试常量定义
 func TestConstants(t *testing.T) {
-	if SuccessCode != 0 {
-		t.Errorf("SuccessCode = %d, want 0", SuccessCode)
+	if OkCode != 0 {
+		t.Errorf("OkCode = %d, want 0", OkCode)
 	}
 	if UnknownCode != -1 {
 		t.Errorf("UnknownCode = %d, want -1", UnknownCode)
@@ -333,17 +333,17 @@ func TestResponseImmutability(t *testing.T) {
 	// 测试WithTrace方法不会修改原始响应
 	original := OKResp("data", "success")
 	modified := original.WithTrace("trace-id")
-	
+
 	// 原始响应应该保持不变
 	if original.TraceID != "" {
 		t.Error("Original response should not be modified")
 	}
-	
+
 	// 修改后的响应应该有trace id
 	if modified.TraceID != "trace-id" {
 		t.Error("Modified response should have trace id")
 	}
-	
+
 	// 其他字段应该相同
 	if original.Code != modified.Code || original.Message != modified.Message {
 		t.Error("Other fields should be the same")
@@ -354,7 +354,7 @@ func TestResponseImmutability(t *testing.T) {
 func BenchmarkOKResp(b *testing.B) {
 	data := map[string]string{"key": "value"}
 	msg := "success"
-	
+
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		OKResp(data, msg)
@@ -365,7 +365,7 @@ func BenchmarkOKResp(b *testing.B) {
 func BenchmarkOk(b *testing.B) {
 	data := "test data"
 	msg := "ok"
-	
+
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		Ok(data, msg)
@@ -378,7 +378,7 @@ func BenchmarkErrorResp(b *testing.B) {
 	reason := "INTERNAL_ERROR"
 	msg := "服务器内部错误"
 	details := "error details"
-	
+
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		ErrorResp(code, reason, msg, details)
@@ -389,7 +389,7 @@ func BenchmarkErrorResp(b *testing.B) {
 func BenchmarkFromError(b *testing.B) {
 	err := errors.New("test error")
 	details := "error details"
-	
+
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		FromError(err, details)
